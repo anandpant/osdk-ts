@@ -74,6 +74,8 @@ import type { ObjectPropertyTypeUserDefinition } from "./object/ObjectPropertyTy
 import type { ObjectType } from "./object/ObjectType.js";
 import type { ObjectTypeDefinition } from "./object/ObjectTypeDefinition.js";
 import {
+  DEFAULT_DECIMAL_PRECISION,
+  DEFAULT_DECIMAL_SCALE,
   isStruct,
   isVector,
   type PropertyTypeType,
@@ -990,10 +992,13 @@ function extractActionParameterType(
     | ObjectPropertyTypeUserDefinition,
 ): ActionParameterType {
   const typeType = pt.type;
+  if (typeType === "decimal") {
+    return extractDecimalActionParameterType({}, pt);
+  }
   if (typeof typeType === "object") {
     switch (typeType.type) {
       case "decimal":
-        return maybeAddList("decimal", pt);
+        return extractDecimalActionParameterType(typeType, pt);
       case "marking":
         return maybeAddList("marking", pt);
       case "string":
@@ -1025,6 +1030,26 @@ function extractActionParameterType(
     default:
       throw new Error("Unknown type");
   }
+}
+
+/**
+ * A parameter derived from a decimal property carries the property's precision
+ * and scale, defaulted the same way as the property itself.
+ */
+function extractDecimalActionParameterType(
+  type: { precision?: number; scale?: number },
+  pt:
+    | InterfaceDefinedProperty
+    | ObjectPropertyType
+    | ObjectPropertyTypeUserDefinition,
+): ActionParameterType {
+  const decimal = {
+    precision: type.precision ?? DEFAULT_DECIMAL_PRECISION,
+    scale: type.scale ?? DEFAULT_DECIMAL_SCALE,
+  };
+  return (pt.array ?? false)
+    ? { type: "decimalList", decimalList: decimal }
+    : { type: "decimal", decimal };
 }
 
 function extractStructActionParameterType(
