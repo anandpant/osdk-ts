@@ -180,7 +180,10 @@ describe("SPTs", () => {
     });
     const action = defineCreateObjectAction({ objectType: obj });
     const priceParam = action.parameters?.find((p) => p.id === "price");
-    expect(priceParam?.type).toBe("decimal");
+    expect(priceParam?.type).toEqual({
+      type: "decimal",
+      decimal: { precision: 10, scale: 2 },
+    });
   });
   it("Number formatting works", () => {
     const spt = defineSharedPropertyType({

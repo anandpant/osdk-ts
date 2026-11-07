@@ -1098,6 +1098,60 @@ describe("Action Types", () => {
   });
 
   describe("Object Actions", () => {
+    it("carries decimal precision and scale into derived parameters", () => {
+      const objectType = defineObject({
+        titlePropertyApiName: "id",
+        displayName: "Price",
+        pluralDisplayName: "Prices",
+        apiName: "price",
+        primaryKeyPropertyApiName: "id",
+        properties: {
+          id: { type: "string" },
+          amount: { type: { type: "decimal", precision: 3, scale: 2 } },
+          total: { type: { type: "decimal", precision: 12 } },
+          bare: { type: "decimal" },
+          rates: {
+            type: { type: "decimal", precision: 10, scale: 4 },
+            array: true,
+          },
+        },
+      });
+
+      defineCreateObjectAction({ objectType });
+      defineModifyObjectAction({ objectType });
+
+      const { actionTypes } = dumpOntologyFullMetadata().ontology;
+      for (const apiName of [
+        "com.palantir.create-object-price",
+        "com.palantir.modify-object-price",
+      ]) {
+        const { actionType } = actionTypes[apiName];
+        const { parameters } = actionType.metadata;
+        const { parameterValidations } = actionType.actionTypeLogic.validation;
+        expect(parameters.amount.type).toEqual({
+          type: "decimal",
+          decimal: { precision: 3, scale: 2 },
+        });
+        expect(parameters.total.type).toEqual({
+          type: "decimal",
+          decimal: { precision: 12, scale: 2 },
+        });
+        expect(parameters.bare.type).toEqual({
+          type: "decimal",
+          decimal: { precision: 5, scale: 2 },
+        });
+        expect(parameters.rates.type).toEqual({
+          type: "decimalList",
+          decimalList: { precision: 10, scale: 4 },
+        });
+        for (const id of ["amount", "total", "bare", "rates"]) {
+          expect(
+            parameterValidations[id].defaultValidation.validation.allowedValues,
+          ).toEqual({ type: "range", range: { type: "range", range: {} } });
+        }
+      }
+    });
+
     it("Vector properties are excluded from auto-generated action parameters", () => {
       const objectType = defineObject({
         titlePropertyApiName: "bar",
