@@ -1129,6 +1129,62 @@ describe("Action Types", () => {
       }
     });
 
+    it("infers range allowed values for custom decimal parameter types", () => {
+      const objectType = defineObject({
+        titlePropertyApiName: "id",
+        displayName: "Price",
+        pluralDisplayName: "Prices",
+        apiName: "price",
+        primaryKeyPropertyApiName: "id",
+        properties: {
+          id: { type: "string" },
+          amount: { type: { type: "decimal", precision: 10, scale: 2 } },
+          rates: {
+            type: { type: "decimal", precision: 10, scale: 4 },
+            array: true,
+          },
+        },
+      });
+
+      defineModifyObjectAction({
+        objectType,
+        parameterConfiguration: {
+          amount: {
+            customParameterType: {
+              type: "decimal",
+              decimal: { precision: 3, scale: 2 },
+            },
+          },
+          rates: {
+            customParameterType: {
+              type: "decimalList",
+              decimalList: { precision: 6, scale: 4 },
+            },
+          },
+        },
+      });
+
+      const actionType =
+        dumpOntologyFullMetadata().ontology.actionTypes[
+          "com.palantir.modify-object-price"
+        ].actionType;
+      const { parameters } = actionType.metadata;
+      const { parameterValidations } = actionType.actionTypeLogic.validation;
+      expect(parameters.amount.type).toEqual({
+        type: "decimal",
+        decimal: { precision: 3, scale: 2 },
+      });
+      expect(parameters.rates.type).toEqual({
+        type: "decimalList",
+        decimalList: { precision: 6, scale: 4 },
+      });
+      for (const id of ["amount", "rates"]) {
+        expect(
+          parameterValidations[id].defaultValidation.validation.allowedValues,
+        ).toEqual({ type: "range", range: { type: "range", range: {} } });
+      }
+    });
+
     it("Derived properties are excluded from auto-generated action parameters", () => {
       const personToParent = defineLink({
         apiName: "person-to-parent",
