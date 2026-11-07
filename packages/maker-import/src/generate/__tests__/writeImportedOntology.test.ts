@@ -25,6 +25,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { mapActionParameterType } from "../mapActionParameterType.js";
 import { mapPropertyType } from "../mapPropertyType.js";
 import {
+  convertOntologyFullMetadata,
   resolveVarNames,
   writeImportedOntology,
 } from "../writeImportedOntology.js";
@@ -168,6 +169,25 @@ describe("mapPropertyType", () => {
     ).toThrowError('Unsupported property type "timeseries"');
   });
 
+  it("keeps decimal precision and scale when the source has them", () => {
+    expect(
+      mapPropertyType({ type: "decimal", precision: 3, scale: 2 }),
+    ).toStrictEqual({ type: { type: "decimal", precision: 3, scale: 2 } });
+    expect(mapPropertyType({ type: "decimal", precision: 12 })).toStrictEqual({
+      type: { type: "decimal", precision: 12 },
+    });
+    expect(
+      mapPropertyType({
+        type: "array",
+        subType: { type: "decimal", precision: 10, scale: 4 },
+        reducers: [],
+      }),
+    ).toEqual({
+      type: { type: "decimal", precision: 10, scale: 4 },
+      array: true,
+    });
+  });
+
   it("throws for unsupported types", () => {
     expect(() =>
       mapPropertyType({ type: "timeseries", itemType: { type: "string" } }),
@@ -286,6 +306,25 @@ describe("mapActionParameterType", () => {
           key: { type: "string", string: {} },
         },
       },
+    });
+  });
+
+  it("keeps decimal precision and scale when the source has them", () => {
+    expect(mapActionParameterType({ type: "decimal" })).toBe("decimal");
+    expect(
+      mapActionParameterType({ type: "decimal", precision: 3, scale: 2 }),
+    ).toStrictEqual({ type: "decimal", decimal: { precision: 3, scale: 2 } });
+    expect(
+      mapActionParameterType({ type: "array", subType: { type: "decimal" } }),
+    ).toBe("decimalList");
+    expect(
+      mapActionParameterType({
+        type: "array",
+        subType: { type: "decimal", precision: 10, scale: 4 },
+      }),
+    ).toStrictEqual({
+      type: "decimalList",
+      decimalList: { precision: 10, scale: 4 },
     });
   });
 
@@ -476,6 +515,82 @@ describe("writeImportedOntology", () => {
     expect(actionFile).toContain('"com.example.createEmployee"');
     expect(actionFile).toContain('"objectReference"');
     expect(actionFile).toContain("export const createEmployee");
+  });
+
+  it("keeps decimal precision and scale in generated stubs", () => {
+    const employee = sampleMetadata.objectTypes.Employee;
+    const metadata: Ontologies.OntologyFullMetadata = {
+      ...sampleMetadata,
+      objectTypes: {
+        Employee: {
+          ...employee,
+          objectType: {
+            ...employee.objectType,
+            properties: {
+              ...employee.objectType.properties,
+              bonus: {
+                rid: "ri.ontology.main.property.bonus",
+                displayName: "Bonus",
+                dataType: { type: "decimal", precision: 3, scale: 2 },
+                typeClasses: [],
+              },
+              rating: {
+                rid: "ri.ontology.main.property.rating",
+                displayName: "Rating",
+                dataType: { type: "decimal" },
+                typeClasses: [],
+              },
+            },
+          },
+        },
+      },
+      actionTypes: {
+        setBonus: {
+          apiName: "com.example.setBonus",
+          displayName: "Set Bonus",
+          status: "ACTIVE",
+          parameters: {
+            bonus: {
+              displayName: "Bonus",
+              dataType: { type: "decimal", precision: 3, scale: 2 },
+              required: true,
+              typeClasses: [],
+            },
+          },
+          operations: [],
+          rid: "ri.ontology.main.action-type.set-bonus",
+        },
+      },
+    };
+
+    const converted = convertOntologyFullMetadata(metadata);
+    const properties =
+      converted.OBJECT_TYPE["com.example.Employee"].properties ?? [];
+    expect(properties.find((p) => p.apiName === "bonus")?.type).toEqual({
+      type: "decimal",
+      precision: 3,
+      scale: 2,
+    });
+    expect(properties.find((p) => p.apiName === "rating")?.type).toBe(
+      "decimal",
+    );
+    const bonusParameter =
+      converted.ACTION_TYPE["com.example.setBonus"].parameters?.[0];
+    expect(bonusParameter?.type).toEqual({
+      type: "decimal",
+      decimal: { precision: 3, scale: 2 },
+    });
+    expect(bonusParameter?.validation.allowedValues).toEqual({
+      type: "range",
+    });
+
+    writeImportedOntology(metadata, TEST_OUTPUT_DIR);
+    const actionFile = fs.readFileSync(
+      path.join(TEST_OUTPUT_DIR, "codegen/action-types/setBonus.ts"),
+      "utf-8",
+    );
+    expect(actionFile).toContain('"precision": 3');
+    expect(actionFile).toContain('"scale": 2');
   });
 
   it("generates index.ts with re-exports", () => {

@@ -57,7 +57,19 @@ export function mapPropertyType(
     case "timestamp":
       return { type: "timestamp" };
     case "decimal":
-      return { type: "decimal" };
+      // The API gateway omits precision and scale for decimal properties, so
+      // they are only carried over when the source metadata includes them.
+      return dataType.precision === undefined && dataType.scale === undefined
+        ? { type: "decimal" }
+        : {
+            type: {
+              type: "decimal",
+              ...(dataType.precision !== undefined && {
+                precision: dataType.precision,
+              }),
+              ...(dataType.scale !== undefined && { scale: dataType.scale }),
+            },
+          };
     case "attachment":
       return { type: "attachment" };
     case "geopoint":

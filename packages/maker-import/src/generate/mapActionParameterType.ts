@@ -32,7 +32,6 @@ const SIMPLE_PARAM_TYPES: Record<string, ActionParameter["type"]> = {
   geoshape: "geoshape",
   mediaReference: "mediaReference",
   timeSeriesReference: "timeSeriesReference",
-  decimal: "decimal",
 };
 
 const LIST_VARIANT_MAP: Record<string, ActionParameter["type"]> = {
@@ -48,7 +47,6 @@ const LIST_VARIANT_MAP: Record<string, ActionParameter["type"]> = {
   geohash: "geohashList",
   geoshape: "geoshapeList",
   mediaReference: "mediaReferenceList",
-  decimal: "decimalList",
 };
 
 function mapStructFieldType(
@@ -99,6 +97,26 @@ function mapGatewayStructFieldsToIr(
 }
 
 /**
+ * Keeps a decimal parameter's precision and scale when the gateway reports
+ * them, and falls back to the bare decimal type when it reports neither.
+ */
+function mapDecimalParameterType(
+  dataType: Extract<Ontologies.ActionParameterType, { type: "decimal" }>,
+  isList: boolean,
+): ActionParameterType {
+  if (dataType.precision === undefined && dataType.scale === undefined) {
+    return isList ? "decimalList" : "decimal";
+  }
+  const decimal = {
+    ...(dataType.precision !== undefined && { precision: dataType.precision }),
+    ...(dataType.scale !== undefined && { scale: dataType.scale }),
+  };
+  return isList
+    ? { type: "decimalList", decimalList: decimal }
+    : { type: "decimal", decimal };
+}
+
+/**
  * Maps a gateway ActionParameterType (discriminated union from OntologyFullMetadata)
  * to a maker ActionParameterType (string primitives or complex objects).
  *
@@ -113,6 +131,8 @@ export function mapActionParameterType(
   }
 
   switch (dataType.type) {
+    case "decimal":
+      return mapDecimalParameterType(dataType, false);
     case "object":
       return {
         type: "objectReference",
@@ -139,6 +159,10 @@ export function mapActionParameterType(
       const listVariant = LIST_VARIANT_MAP[subType.type];
       if (listVariant !== undefined) {
         return listVariant;
+      }
+
+      if (subType.type === "decimal") {
+        return mapDecimalParameterType(subType, true);
       }
 
       if (subType.type === "object") {
