@@ -1148,9 +1148,22 @@ export class OntologyIrToFullMetadataConverter {
           };
           break;
         case "decimal":
-          throw new Error("Decimal type not supported");
+          dataType = {
+            type: "decimal",
+            precision: irParameter.type.decimal.precision ?? undefined,
+            scale: irParameter.type.decimal.scale ?? undefined,
+          };
+          break;
         case "decimalList":
-          throw new Error("Decimal list type not supported");
+          dataType = {
+            type: "array",
+            subType: {
+              type: "decimal",
+              precision: irParameter.type.decimalList.precision ?? undefined,
+              scale: irParameter.type.decimalList.scale ?? undefined,
+            },
+          };
+          break;
         case "double":
           dataType = { type: "double" };
           break;

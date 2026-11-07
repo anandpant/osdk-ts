@@ -929,4 +929,111 @@ describe(OntologyBlockDataToFullMetadataConverter, () => {
       },
     });
   });
+
+  it("converts decimal action parameters with their precision and scale", () => {
+    const parameter = (
+      id: string,
+      type: Parameter["type"],
+    ): Parameter => ({
+      id,
+      rid: `${id}-rid`,
+      displayMetadata: {
+        displayName: id,
+        description: "",
+        structFields: {},
+        structFieldsV2: [],
+        typeClasses: [],
+      },
+      type,
+    });
+    const validation: ConditionalValidationBlock = {
+      conditionalOverrides: [],
+      structFieldValidations: {},
+      defaultValidation: {
+        display: {
+          renderHint: { type: "numericInput", numericInput: {} },
+          visibility: { type: "editable", editable: {} },
+        },
+        validation: {
+          required: { type: "required", required: {} },
+          allowedValues: { type: "range", range: { type: "range", range: {} } },
+        },
+      },
+    };
+    const action: ActionTypeBlockDataV2 = {
+      parameterIds: { price: "price", rates: "rates", amount: "amount" },
+      actionType: {
+        metadata: {
+          rid: "action-rid",
+          apiName: "setPrice",
+          version: "1.0.0",
+          displayMetadata: {
+            displayName: "Set price",
+            description: "",
+            applyingMessage: [],
+            successMessage: [],
+            typeClasses: [],
+          },
+          status: { type: "active", active: {} },
+          parameters: {
+            price: parameter("price", {
+              type: "decimal",
+              decimal: { precision: 3, scale: 2 },
+            }),
+            rates: parameter("rates", {
+              type: "decimalList",
+              decimalList: { precision: 10, scale: 4 },
+            }),
+            amount: parameter("amount", { type: "decimal", decimal: {} }),
+          },
+          parameterOrdering: ["price", "rates", "amount"],
+          formContentOrdering: [],
+          sections: {},
+        },
+        actionTypeLogic: {
+          logic: { rules: [] },
+          notifications: [],
+          validation: {
+            actionTypeLevelValidation: { ordering: [], rules: {} },
+            parameterValidations: {
+              price: validation,
+              rates: validation,
+              amount: validation,
+            },
+            sectionValidations: {},
+          },
+        },
+      },
+    };
+
+    const result = OntologyBlockDataToFullMetadataConverter
+      .getOsdkActionParametersFromBlockData(action, undefined, undefined);
+
+    expect(result).toStrictEqual({
+      price: {
+        displayName: "price",
+        description: "",
+        required: true,
+        dataType: { type: "decimal", precision: 3, scale: 2 },
+        typeClasses: [],
+      },
+      rates: {
+        displayName: "rates",
+        description: "",
+        required: true,
+        dataType: {
+          type: "array",
+          subType: { type: "decimal", precision: 10, scale: 4 },
+        },
+        typeClasses: [],
+      },
+      amount: {
+        displayName: "amount",
+        description: "",
+        required: true,
+        dataType: { type: "decimal", precision: undefined, scale: undefined },
+        typeClasses: [],
+      },
+    });
+  });
 });
