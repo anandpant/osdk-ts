@@ -992,9 +992,6 @@ function extractActionParameterType(
     | ObjectPropertyTypeUserDefinition,
 ): ActionParameterType {
   const typeType = pt.type;
-  if (typeType === "decimal") {
-    return extractDecimalActionParameterType({}, pt);
-  }
   if (typeof typeType === "object") {
     switch (typeType.type) {
       case "decimal":
@@ -1033,8 +1030,11 @@ function extractActionParameterType(
 }
 
 /**
- * A parameter derived from a decimal property carries the property's precision
- * and scale, defaulted the same way as the property itself.
+ * A parameter derived from a decimal property that sets a precision or scale
+ * carries the property's precision and scale, defaulted the same way as the
+ * property itself. A decimal property that sets neither keeps an unbounded
+ * decimal parameter: for an imported property the values may simply be missing
+ * from the source metadata, so a default could contradict the real property.
  */
 function extractDecimalActionParameterType(
   type: { precision?: number; scale?: number },
@@ -1043,6 +1043,9 @@ function extractDecimalActionParameterType(
     | ObjectPropertyType
     | ObjectPropertyTypeUserDefinition,
 ): ActionParameterType {
+  if (type.precision === undefined && type.scale === undefined) {
+    return maybeAddList("decimal", pt);
+  }
   const decimal = {
     precision: type.precision ?? DEFAULT_DECIMAL_PRECISION,
     scale: type.scale ?? DEFAULT_DECIMAL_SCALE,
