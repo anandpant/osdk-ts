@@ -849,6 +849,9 @@ export function extractAllowedValuesFromActionParameterType(
 ): ActionParameterAllowedValues {
   if (typeof type === "object") {
     switch (type.type) {
+      case "decimal":
+      case "decimalList":
+        return { type: "range" };
       case "objectReference":
       case "objectReferenceList":
         return { type: "objectQuery" };
