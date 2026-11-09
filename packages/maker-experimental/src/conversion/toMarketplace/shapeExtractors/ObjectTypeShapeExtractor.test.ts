@@ -483,6 +483,7 @@ describe("ObjectTypeShapeExtractor", () => {
         expect(datasetShape.tabularDatasource.supportedTypes).toEqual([
           "DATASET",
           "RESTRICTED_VIEW",
+          "VIRTUAL_TABLE",
         ]);
         expect(datasetShape.tabularDatasource.about.fallbackTitle).toBe(
           "person-dataset",
