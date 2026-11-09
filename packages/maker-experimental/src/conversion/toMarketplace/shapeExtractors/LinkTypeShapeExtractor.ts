@@ -404,7 +404,9 @@ export class LinkTypeShapeExtractor {
     const shape: TabularDatasourceInputShape = {
       about: createLocalizedAbout(linkTypeName),
       schema: columnReferences,
-      supportedTypes: [datasourceType],
+      supportedTypes: datasourceType === "DATASET"
+        ? ["DATASET", "VIRTUAL_TABLE"]
+        : [datasourceType],
     };
 
     return {

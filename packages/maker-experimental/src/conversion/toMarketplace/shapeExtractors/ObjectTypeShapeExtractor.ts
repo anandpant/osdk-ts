@@ -625,6 +625,7 @@ export class ObjectTypeShapeExtractor {
     supportedTypes: TabularDatasourceInputShape["supportedTypes"] = [
       "DATASET",
       "RESTRICTED_VIEW",
+      "VIRTUAL_TABLE",
     ],
   ): Map<ReadableId, InputShape> {
     const datasourceLocator: DatasourceLocator = {
